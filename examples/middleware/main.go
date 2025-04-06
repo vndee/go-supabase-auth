@@ -89,34 +89,40 @@ func RoleMiddleware(requiredRole string) func(http.Handler) http.Handler {
 func handleError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"error": message,
-	})
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(UserKey).(*auth.User)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": fmt.Sprintf("Hello, %s!", user.Email),
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    user.Role,
-	})
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(UserKey).(*auth.User)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":   "Admin area",
 		"user_id":   user.ID,
 		"email":     user.Email,
 		"role":      user.Role,
 		"timestamp": time.Now().Format(time.RFC3339),
-	})
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func main() {

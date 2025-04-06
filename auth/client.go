@@ -59,7 +59,7 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -108,7 +108,7 @@ func (c *Client) ListUsers(ctx context.Context, options *ListUsersOptions) (*Use
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -150,7 +150,7 @@ func (c *Client) CreateUser(ctx context.Context, options *CreateUserOptions) (*U
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, handleErrorResponse(resp)
@@ -188,7 +188,7 @@ func (c *Client) UpdateUser(ctx context.Context, userID string, options *UpdateU
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -217,7 +217,7 @@ func (c *Client) DeleteUser(ctx context.Context, userID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return handleErrorResponse(resp)
@@ -250,7 +250,7 @@ func (c *Client) VerifyToken(ctx context.Context, token string) (*User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -301,7 +301,7 @@ func (c *Client) GenerateLink(ctx context.Context, action LinkAction, options *G
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)

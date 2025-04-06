@@ -60,7 +60,7 @@ func (a *Admin) CreateAuthProvider(ctx context.Context, provider string, options
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return handleErrorResponse(resp)
@@ -89,7 +89,7 @@ func (a *Admin) UpdateAuthProvider(ctx context.Context, provider string, options
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return handleErrorResponse(resp)
@@ -113,7 +113,7 @@ func (a *Admin) DeleteAuthProvider(ctx context.Context, provider string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return handleErrorResponse(resp)
@@ -137,7 +137,7 @@ func (a *Admin) GetAuthSettings(ctx context.Context) (map[string]interface{}, er
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -171,7 +171,7 @@ func (a *Admin) UpdateAuthSettings(ctx context.Context, settings map[string]inte
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return handleErrorResponse(resp)
@@ -201,7 +201,7 @@ func (a *Admin) ListAuditLogs(ctx context.Context, options map[string]string) ([
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -260,7 +260,7 @@ func (a *Admin) GenerateUserMigration(ctx context.Context, userID string, option
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -296,7 +296,7 @@ func (a *Admin) CreateManyUsers(ctx context.Context, users []*CreateUserOptions)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, handleErrorResponse(resp)
