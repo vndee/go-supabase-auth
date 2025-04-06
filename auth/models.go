@@ -9,15 +9,15 @@ type User struct {
 	Role               string                 `json:"role"`
 	Email              string                 `json:"email"`
 	Phone              string                 `json:"phone"`
-	EmailConfirmed     bool                   `json:"email_confirmed_at,omitempty"`
-	PhoneConfirmed     bool                   `json:"phone_confirmed_at,omitempty"`
+	EmailConfirmed     *time.Time             `json:"email_confirmed_at,omitempty"`
+	PhoneConfirmed     *time.Time             `json:"phone_confirmed_at,omitempty"`
 	LastSignInAt       time.Time              `json:"last_sign_in_at,omitempty"`
 	AppMetadata        map[string]interface{} `json:"app_metadata"`
 	UserMetadata       map[string]interface{} `json:"user_metadata"`
 	Identities         []Identity             `json:"identities"`
 	CreatedAt          time.Time              `json:"created_at"`
 	UpdatedAt          time.Time              `json:"updated_at"`
-	Banned             bool                   `json:"banned"`
+	IsAnonymous        bool                   `json:"is_anonymous,omitempty"`
 	BannedUntil        *time.Time             `json:"banned_until,omitempty"`
 	ConfirmedAt        *time.Time             `json:"confirmed_at,omitempty"`
 	ConfirmationSentAt *time.Time             `json:"confirmation_sent_at,omitempty"`

@@ -112,6 +112,49 @@ func TestGetUser(t *testing.T) {
 	}
 }
 
+// TestGetUserByEmail tests getting a user by email
+func TestGetUserByEmail(t *testing.T) {
+	// Setup mock HTTP client
+	mockResponses := map[string]authtest.MockResponse{
+		"/auth/v1/admin/users?email=test@example.com": {
+			StatusCode: http.StatusOK,
+			Body: map[string]interface{}{
+				"users": []map[string]interface{}{
+					{
+						"id":    "user123",
+						"email": "test@example.com",
+						"role":  "user",
+					},
+				},
+				"total_count": 1,
+			},
+		},
+	}
+	httpClient := authtest.MockHTTPClient(t, mockResponses)
+
+	// Create client with mock HTTP client
+	client := NewClient(testProjectURL, testAPIKey).WithHTTPClient(httpClient)
+	ctx := context.Background()
+
+	// Test getting a user by email
+	user, err := client.GetUserByEmail(ctx, "test@example.com")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if user.ID != "user123" {
+		t.Errorf("Expected user ID to be 'user123', got %s", user.ID)
+	}
+
+	if user.Email != "test@example.com" {
+		t.Errorf("Expected email to be 'test@example.com', got %s", user.Email)
+	}
+
+	if user.Role != "user" {
+		t.Errorf("Expected role to be 'user', got %s", user.Role)
+	}
+}
+
 // TestListUsers tests listing users
 func TestListUsers(t *testing.T) {
 	// Setup mock HTTP client
@@ -279,7 +322,7 @@ func TestDeleteUser(t *testing.T) {
 func TestVerifyTokenWithAPI(t *testing.T) {
 	// Setup mock HTTP client
 	mockResponses := map[string]authtest.MockResponse{
-		"/auth/v1/admin/verify-token": {
+		"/auth/v1/user": {
 			StatusCode: http.StatusOK,
 			Body: map[string]interface{}{
 				"id":    "user123",
@@ -362,12 +405,12 @@ func TestSignUpAndSignIn(t *testing.T) {
 		t.Fatalf("Expected no error for signup, got %v", err)
 	}
 
-	if signupUser.Email != "new@example.com" {
-		t.Errorf("Expected signup email to be 'new@example.com', got %s", signupUser.Email)
+	if signupUser.User.Email != "new@example.com" {
+		t.Errorf("Expected signup email to be 'new@example.com', got %s", signupUser.User.Email)
 	}
 
-	if signupUser.ID != "new-user-id" {
-		t.Errorf("Expected signup user ID to be 'new-user-id', got %s", signupUser.ID)
+	if signupUser.User.ID != "new-user-id" {
+		t.Errorf("Expected signup user ID to be 'new-user-id', got %s", signupUser.User.ID)
 	}
 
 	// Check if tokens were set
@@ -386,12 +429,12 @@ func TestSignUpAndSignIn(t *testing.T) {
 		t.Fatalf("Expected no error for signin, got %v", err)
 	}
 
-	if signinUser.Email != "test@example.com" {
-		t.Errorf("Expected signin email to be 'test@example.com', got %s", signinUser.Email)
+	if signinUser.User.Email != "test@example.com" {
+		t.Errorf("Expected signin email to be 'test@example.com', got %s", signinUser.User.Email)
 	}
 
-	if signinUser.ID != "user123" {
-		t.Errorf("Expected signin user ID to be 'user123', got %s", signinUser.ID)
+	if signinUser.User.ID != "user123" {
+		t.Errorf("Expected signin user ID to be 'user123', got %s", signinUser.User.ID)
 	}
 
 	// Check if tokens were updated
@@ -937,76 +980,6 @@ func TestSetUserRole(t *testing.T) {
 
 	if user.Role != "admin" {
 		t.Errorf("Expected role to be 'admin', got %s", user.Role)
-	}
-}
-
-// TestBanUser tests banning a user
-func TestBanUser(t *testing.T) {
-	// Setup mock HTTP client
-	mockResponses := map[string]authtest.MockResponse{
-		"/auth/v1/admin/users/user123": {
-			StatusCode: http.StatusOK,
-			Body: map[string]interface{}{
-				"id":     "user123",
-				"email":  "test@example.com",
-				"role":   "user",
-				"banned": true,
-			},
-		},
-	}
-	httpClient := authtest.MockHTTPClient(t, mockResponses)
-
-	// Create client with mock HTTP client
-	client := NewClient(testProjectURL, testAPIKey).WithHTTPClient(httpClient)
-	ctx := context.Background()
-
-	// Test banning a user
-	user, err := client.BanUser(ctx, "user123")
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if user.ID != "user123" {
-		t.Errorf("Expected user ID to be 'user123', got %s", user.ID)
-	}
-
-	if !user.Banned {
-		t.Errorf("Expected user to be banned, got %v", user.Banned)
-	}
-}
-
-// TestUnbanUser tests unbanning a user
-func TestUnbanUser(t *testing.T) {
-	// Setup mock HTTP client
-	mockResponses := map[string]authtest.MockResponse{
-		"/auth/v1/admin/users/user123": {
-			StatusCode: http.StatusOK,
-			Body: map[string]interface{}{
-				"id":     "user123",
-				"email":  "test@example.com",
-				"role":   "user",
-				"banned": false,
-			},
-		},
-	}
-	httpClient := authtest.MockHTTPClient(t, mockResponses)
-
-	// Create client with mock HTTP client
-	client := NewClient(testProjectURL, testAPIKey).WithHTTPClient(httpClient)
-	ctx := context.Background()
-
-	// Test unbanning a user
-	user, err := client.UnbanUser(ctx, "user123")
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if user.ID != "user123" {
-		t.Errorf("Expected user ID to be 'user123', got %s", user.ID)
-	}
-
-	if user.Banned {
-		t.Errorf("Expected user to not be banned, got %v", user.Banned)
 	}
 }
 

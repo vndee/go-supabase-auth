@@ -6,10 +6,16 @@ import (
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/vndee/go-supabase-auth/auth"
 )
 
 func main() {
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: Error loading .env file:", err)
+	}
+
 	// Get Supabase credentials from environment variables
 	projectURL := os.Getenv("SUPABASE_URL")
 	apiKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY") // Service role key for admin functions
@@ -39,8 +45,9 @@ func main() {
 	// Example 2: Create a user (admin operation)
 	fmt.Println("\nCreating a new user...")
 	newUser, err := client.CreateUser(ctx, &auth.CreateUserOptions{
-		Email:    "test@example.com",
-		Password: "password123",
+		Email:        "test@example.com",
+		Password:     "password123",
+		EmailConfirm: true,
 		UserMetadata: map[string]interface{}{
 			"name": "Test User",
 		},
@@ -48,18 +55,27 @@ func main() {
 
 	// Handle case where user might already exist
 	if err != nil {
+		// Check for conflict (email already exists) error
 		if auth.IsConflictError(err) {
 			fmt.Println("User already exists, trying to find them...")
-			// Try to find the user by email
-			userList, err := client.ListUsers(ctx, &auth.ListUsersOptions{
-				Filter: auth.BuildFilter("email", "eq", "test@example.com"),
+			// Get all users and find the one with matching email
+			allUsers, err := client.ListUsers(ctx, &auth.ListUsersOptions{
+				PerPage: 100,
 			})
 			if err != nil {
-				log.Fatalf("Error finding user: %v", err)
+				log.Fatalf("Error listing users: %v", err)
 			}
 
-			if len(userList.Users) > 0 {
-				newUser = &userList.Users[0]
+			var foundUser *auth.User
+			for _, user := range allUsers.Users {
+				if user.Email == "test@example.com" {
+					foundUser = &user
+					break
+				}
+			}
+
+			if foundUser != nil {
+				newUser = foundUser
 				fmt.Printf("Found existing user with ID: %s\n", newUser.ID)
 			} else {
 				log.Fatalf("User should exist but couldn't be found")
@@ -71,44 +87,34 @@ func main() {
 		fmt.Printf("Created new user with ID: %s\n", newUser.ID)
 	}
 
-	// Example 3: Generate a password reset link (auth operation)
-	fmt.Println("\nGenerating password reset link...")
-	linkOptions := &auth.GenerateLinkOptions{
-		Email:      "test@example.com",
-		RedirectTo: "https://yourapp.com/reset-password",
-	}
-
-	link, err := client.GenerateLink(ctx, auth.LinkActionRecovery, linkOptions)
+	// Example 3: Sign in a user
+	fmt.Println("\nSigning in user...")
+	signInUser, err := client.SignIn(ctx, "test@example.com", "password123")
 	if err != nil {
-		log.Fatalf("Error generating link: %v", err)
+		log.Fatalf("Error signing in user: %v", err)
 	}
-	fmt.Printf("Password reset link generated: %s\n", link.Link)
+	fmt.Printf("Signed in user with ID: %s\n", signInUser.User.ID)
+	fmt.Printf("Access token: %s\n", signInUser.AccessToken)
 
-	// Example 4: Update auth settings (admin operation)
-	fmt.Println("\nGetting auth settings...")
-	settings, err := client.GetAuthSettings(ctx)
+	// Example 4: Verify the access token with the API
+	fmt.Println("\nVerifying user...")
+	verifiedUser, err := client.VerifyTokenWithAPI(ctx, signInUser.AccessToken)
 	if err != nil {
-		log.Fatalf("Error getting auth settings: %v", err)
+		log.Fatalf("Error verifying user: %v", err)
 	}
-	fmt.Printf("Current auth settings: %v\n", settings)
+	fmt.Printf("Verified user with ID: %s\n", verifiedUser.ID)
 
-	// Example 5: Ban a user (admin operation + convenience method)
-	fmt.Println("\nBanning user...")
-	bannedUser, err := client.BanUser(ctx, newUser.ID)
+	// Example 5: Verify access token with jwt
+	fmt.Println("\nVerifying access token with jwt...")
+	jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
+	issuer := os.Getenv("SUPABASE_JWT_ISSUER")
+	jwtPayload, err := client.VerifyJWT(signInUser.AccessToken, jwtSecret, issuer)
 	if err != nil {
-		log.Fatalf("Error banning user: %v", err)
+		log.Fatalf("Error verifying user: %v", err)
 	}
-	fmt.Printf("User banned: %v\n", bannedUser.Banned)
+	fmt.Printf("Verified user with ID: %s\n", jwtPayload.Sub)
 
-	// Example 6: Unban the user
-	fmt.Println("\nUnbanning user...")
-	unbannedUser, err := client.UnbanUser(ctx, newUser.ID)
-	if err != nil {
-		log.Fatalf("Error unbanning user: %v", err)
-	}
-	fmt.Printf("User unbanned: %v\n", !unbannedUser.Banned)
-
-	// Example 7: Delete the user
+	// Example 6: Delete the user
 	fmt.Println("\nDeleting user...")
 	err = client.DeleteUser(ctx, newUser.ID)
 	if err != nil {

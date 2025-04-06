@@ -159,7 +159,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 			case "DELETE":
 				w.WriteHeader(http.StatusNoContent)
 			}
-		case "/auth/v1/admin/verify-token":
+		case "/auth/v1/user":
 			// Handle token verification
 			var tokenData map[string]string
 			if err := json.NewDecoder(io.NopCloser(bytes.NewBuffer(body))).Decode(&tokenData); err != nil {

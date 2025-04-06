@@ -79,6 +79,39 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
 	return &user, nil
 }
 
+// GetUserByEmail retrieves a user by their email
+func (c *Client) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	endpoint := fmt.Sprintf("%s/auth/v1/admin/users?email=%s", c.config.ProjectURL, email)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
+	}
+
+	c.setAdminHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, handleErrorResponse(resp)
+	}
+
+	var userList UserList
+	if err := json.NewDecoder(resp.Body).Decode(&userList); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedParsing, err.Error())
+	}
+
+	if len(userList.Users) == 0 {
+		return nil, fmt.Errorf("%w: user not found", ErrUserNotFound)
+	}
+
+	return &userList.Users[0], nil
+}
+
 // ListUsers returns a list of users with pagination
 func (c *Client) ListUsers(ctx context.Context, options *ListUsersOptions) (*UserList, error) {
 	endpoint := fmt.Sprintf("%s/auth/v1/admin/users", c.config.ProjectURL)
@@ -234,7 +267,7 @@ func (c *Client) DeleteUser(ctx context.Context, userID string) error {
 
 // VerifyTokenWithAPI validates a JWT token by calling the Supabase API and returns the user information
 func (c *Client) VerifyTokenWithAPI(ctx context.Context, token string) (*User, error) {
-	endpoint := fmt.Sprintf("%s/auth/v1/admin/verify-token", c.config.ProjectURL)
+	endpoint := fmt.Sprintf("%s/auth/v1/user", c.config.ProjectURL)
 
 	data := map[string]string{
 		"token": token,
@@ -245,12 +278,14 @@ func (c *Client) VerifyTokenWithAPI(ctx context.Context, token string) (*User, e
 		return nil, fmt.Errorf("%w: %s", ErrFailedEncoding, err.Error())
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
 
-	c.setAdminHeaders(req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", c.config.APIKey)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -278,7 +313,7 @@ func (c *Client) VerifyJWT(token, jwtSecret string, issuer string) (*JWTPayload,
 }
 
 // SignUp registers a new user with email and password
-func (c *Client) SignUp(ctx context.Context, email, password string, userData map[string]interface{}) (*User, error) {
+func (c *Client) SignUp(ctx context.Context, email, password string, userData map[string]interface{}) (*TokenResponse, error) {
 	data := map[string]interface{}{
 		"email":    email,
 		"password": password,
@@ -289,7 +324,7 @@ func (c *Client) SignUp(ctx context.Context, email, password string, userData ma
 }
 
 // SignIn authenticates a user with email and password
-func (c *Client) SignIn(ctx context.Context, email, password string) (*User, error) {
+func (c *Client) SignIn(ctx context.Context, email, password string) (*TokenResponse, error) {
 	data := map[string]interface{}{
 		"email":    email,
 		"password": password,
@@ -798,22 +833,6 @@ func (c *Client) SetUserRole(ctx context.Context, userID, role string) (*User, e
 	})
 }
 
-// BanUser sets a user's banned status
-func (c *Client) BanUser(ctx context.Context, userID string) (*User, error) {
-	banned := true
-	return c.UpdateUser(ctx, userID, &UpdateUserOptions{
-		Banned: &banned,
-	})
-}
-
-// UnbanUser removes a user's banned status
-func (c *Client) UnbanUser(ctx context.Context, userID string) (*User, error) {
-	banned := false
-	return c.UpdateUser(ctx, userID, &UpdateUserOptions{
-		Banned: &banned,
-	})
-}
-
 // CreateManyUsers creates multiple users in a batch operation
 func (c *Client) CreateManyUsers(ctx context.Context, users []*CreateUserOptions) ([]interface{}, error) {
 	endpoint := fmt.Sprintf("%s/auth/v1/admin/users/batch", c.config.ProjectURL)
@@ -909,7 +928,7 @@ func (c *Client) GetSession() (accessToken, refreshToken string, expiry time.Tim
 }
 
 // signUpOrIn is an internal method to handle sign up and sign in
-func (c *Client) signUpOrIn(ctx context.Context, endpoint string, data map[string]interface{}) (*User, error) {
+func (c *Client) signUpOrIn(ctx context.Context, endpoint string, data map[string]interface{}) (*TokenResponse, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedEncoding, err.Error())
@@ -951,7 +970,7 @@ func (c *Client) signUpOrIn(ctx context.Context, endpoint string, data map[strin
 		c.config.TokenCallback(c.accessToken, c.refreshToken)
 	}
 
-	return &tokenResp.User, nil
+	return &tokenResp, nil
 }
 
 // setAdminHeaders sets the headers required for admin API requests

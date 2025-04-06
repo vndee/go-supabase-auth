@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var (
@@ -103,6 +104,10 @@ func IsConflictError(err error) bool {
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
 		return apiErr.StatusCode == 409
+	}
+
+	if strings.Contains(err.Error(), "email_exists") {
+		return true
 	}
 	return errors.Is(err, ErrEmailTaken) || errors.Is(err, ErrPhoneTaken)
 }
