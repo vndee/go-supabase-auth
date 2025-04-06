@@ -357,7 +357,7 @@ func (c *Client) InviteUserByEmail(ctx context.Context, email string, options *I
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -386,7 +386,7 @@ func (c *Client) ListFactors(ctx context.Context, userID string) ([]Factor, erro
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -415,7 +415,7 @@ func (c *Client) ListUserSessions(ctx context.Context, userID string) ([]Session
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, handleErrorResponse(resp)
@@ -444,7 +444,7 @@ func (c *Client) DeleteUserSessions(ctx context.Context, userID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedRequest, err.Error())
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return handleErrorResponse(resp)

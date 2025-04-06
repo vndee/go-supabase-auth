@@ -98,7 +98,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 			// Handle user listing or creation
 			switch r.Method {
 			case "GET":
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 					"users": []map[string]interface{}{
 						{
 							"id":    "user123",
@@ -113,7 +113,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 				var userData map[string]interface{}
 				if err := json.NewDecoder(io.NopCloser(bytes.NewBuffer(body))).Decode(&userData); err != nil {
 					w.WriteHeader(http.StatusBadRequest)
-					json.NewEncoder(w).Encode(map[string]string{
+					json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 						"error":   "invalid_request",
 						"message": "Invalid request body",
 					})
@@ -122,7 +122,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 
 				// Return mocked user creation response
 				w.WriteHeader(http.StatusCreated)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 					"id":    "new-user-id",
 					"email": userData["email"],
 					"role":  userData["role"],
@@ -132,7 +132,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 			// Handle specific user operations
 			switch r.Method {
 			case "GET":
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 					"id":    "user123",
 					"email": "test@example.com",
 					"role":  "user",
@@ -142,7 +142,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 				var updateData map[string]interface{}
 				if err := json.NewDecoder(io.NopCloser(bytes.NewBuffer(body))).Decode(&updateData); err != nil {
 					w.WriteHeader(http.StatusBadRequest)
-					json.NewEncoder(w).Encode(map[string]string{
+					json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 						"error":   "invalid_request",
 						"message": "Invalid request body",
 					})
@@ -151,7 +151,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 
 				// Return mocked user update response
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 					"id":    "user123",
 					"email": "test@example.com",
 					"role":  updateData["role"],
@@ -169,14 +169,14 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 
 			// Simulate token verification
 			if tokenData["token"] == "valid-token" {
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 					"id":    "user123",
 					"email": "test@example.com",
 					"role":  "user",
 				})
 			} else {
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{
+				json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 					"error":   "invalid_token",
 					"message": "Invalid token",
 				})
@@ -184,7 +184,7 @@ func SetupTestServer() (*httptest.Server, *[]http.Request) {
 		default:
 			// Default handler for unimplemented paths
 			w.WriteHeader(http.StatusNotImplemented)
-			json.NewEncoder(w).Encode(map[string]string{
+			json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 				"error":   "not_implemented",
 				"message": "Endpoint not implemented in test server",
 			})
