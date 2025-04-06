@@ -52,7 +52,7 @@ func AuthMiddleware(client *auth.Client) func(http.Handler) http.Handler {
 			}
 
 			// Verify token with Supabase
-			user, err := client.VerifyToken(r.Context(), token)
+			user, err := client.VerifyTokenWithAPI(r.Context(), token)
 			if err != nil {
 				handleError(w, "Invalid token", http.StatusUnauthorized)
 				return

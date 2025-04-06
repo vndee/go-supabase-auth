@@ -232,8 +232,8 @@ func (c *Client) DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-// VerifyToken validates a JWT token and returns the user information
-func (c *Client) VerifyToken(ctx context.Context, token string) (*User, error) {
+// VerifyTokenWithAPI validates a JWT token by calling the Supabase API and returns the user information
+func (c *Client) VerifyTokenWithAPI(ctx context.Context, token string) (*User, error) {
 	endpoint := fmt.Sprintf("%s/auth/v1/admin/verify-token", c.config.ProjectURL)
 
 	data := map[string]string{
@@ -268,6 +268,13 @@ func (c *Client) VerifyToken(ctx context.Context, token string) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+// VerifyJWT validates a JWT token locally without calling the Supabase API
+// It verifies the token signature using the provided JWT secret, checks the issuer (if provided), and token expiration
+// Returns the decoded token payload if verification is successful
+func (c *Client) VerifyJWT(token, jwtSecret string, issuer string) (*JWTPayload, error) {
+	return VerifyJWTWithSecret(token, jwtSecret, issuer)
 }
 
 // SignUp registers a new user with email and password

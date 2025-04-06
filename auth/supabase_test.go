@@ -2,10 +2,13 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	authtest "github.com/vndee/go-supabase-auth/auth/mock"
 )
 
@@ -273,7 +276,7 @@ func TestDeleteUser(t *testing.T) {
 }
 
 // TestVerifyToken tests token verification
-func TestVerifyToken(t *testing.T) {
+func TestVerifyTokenWithAPI(t *testing.T) {
 	// Setup mock HTTP client
 	mockResponses := map[string]authtest.MockResponse{
 		"/auth/v1/admin/verify-token": {
@@ -292,7 +295,7 @@ func TestVerifyToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Test verifying a token
-	user, err := client.VerifyToken(ctx, "valid-token")
+	user, err := client.VerifyTokenWithAPI(ctx, "valid-token")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -1725,5 +1728,167 @@ func TestUpdateAuthSettingsDetailedCases(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "This is not JSON") {
 		t.Errorf("Expected error containing 'This is not JSON', got: %v", err)
+	}
+}
+
+// TestVerifyJWT tests the local token verification function
+func TestVerifyJWT(t *testing.T) {
+	// This is a test JWT with the following claims:
+	// {
+	//   "sub": "test-user-id",
+	//   "role": "authenticated",
+	//   "email": "test@example.com",
+	//   "exp": <future timestamp>,
+	//   "iat": <past timestamp>,
+	//   "iss": "test-issuer"
+	// }
+	// Secret used: "test-jwt-secret"
+
+	// Create a real token for testing
+	claims := jwt.MapClaims{
+		"sub":   "test-user-id",
+		"role":  "authenticated",
+		"email": "test@example.com",
+		"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		"iat":   time.Now().Add(-5 * time.Minute).Unix(),
+		"iss":   "test-issuer",
+		"app_metadata": map[string]interface{}{
+			"provider": "email",
+		},
+		"user_metadata": map[string]interface{}{
+			"name": "Test User",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	validToken, err := token.SignedString([]byte("test-jwt-secret"))
+	if err != nil {
+		t.Fatalf("Failed to create test token: %v", err)
+	}
+
+	// Create an expired token
+	expiredClaims := jwt.MapClaims{
+		"sub":   "test-user-id",
+		"role":  "authenticated",
+		"email": "test@example.com",
+		"exp":   time.Now().Add(-1 * time.Hour).Unix(),
+		"iat":   time.Now().Add(-2 * time.Hour).Unix(),
+		"iss":   "test-issuer",
+	}
+
+	expiredToken := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims)
+	invalidToken, err := expiredToken.SignedString([]byte("test-jwt-secret"))
+	if err != nil {
+		t.Fatalf("Failed to create expired test token: %v", err)
+	}
+
+	// Create token with wrong issuer
+	wrongIssuerClaims := jwt.MapClaims{
+		"sub":   "test-user-id",
+		"role":  "authenticated",
+		"email": "test@example.com",
+		"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		"iss":   "wrong-issuer",
+	}
+
+	wrongIssuerToken := jwt.NewWithClaims(jwt.SigningMethodHS256, wrongIssuerClaims)
+	issuerToken, err := wrongIssuerToken.SignedString([]byte("test-jwt-secret"))
+	if err != nil {
+		t.Fatalf("Failed to create wrong issuer test token: %v", err)
+	}
+
+	// Test cases
+	tests := []struct {
+		name        string
+		token       string
+		secret      string
+		issuer      string
+		wantErr     bool
+		expectedErr error
+	}{
+		{
+			name:    "Valid token",
+			token:   validToken,
+			secret:  "test-jwt-secret",
+			issuer:  "test-issuer",
+			wantErr: false,
+		},
+		{
+			name:        "Expired token",
+			token:       invalidToken,
+			secret:      "test-jwt-secret",
+			issuer:      "test-issuer",
+			wantErr:     true,
+			expectedErr: ErrExpiredToken,
+		},
+		{
+			name:        "Invalid signature",
+			token:       validToken,
+			secret:      "wrong-secret",
+			issuer:      "test-issuer",
+			wantErr:     true,
+			expectedErr: ErrInvalidToken,
+		},
+		{
+			name:        "Wrong issuer",
+			token:       issuerToken,
+			secret:      "test-jwt-secret",
+			issuer:      "test-issuer",
+			wantErr:     true,
+			expectedErr: ErrInvalidToken,
+		},
+		{
+			name:    "No issuer check",
+			token:   issuerToken,
+			secret:  "test-jwt-secret",
+			issuer:  "", // Empty means don't check issuer
+			wantErr: false,
+		},
+		{
+			name:        "Invalid token format",
+			token:       "not.a.validtoken",
+			secret:      "test-jwt-secret",
+			issuer:      "test-issuer",
+			wantErr:     true,
+			expectedErr: ErrInvalidToken,
+		},
+	}
+
+	client := NewClient(testProjectURL, testAPIKey)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload, err := client.VerifyJWT(tt.token, tt.secret, tt.issuer)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error but got nil")
+					return
+				}
+
+				if tt.expectedErr != nil && !errors.Is(err, tt.expectedErr) {
+					t.Errorf("Expected error %v, got %v", tt.expectedErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			// Verify payload for valid token
+			if payload.Sub != "test-user-id" {
+				t.Errorf("Expected subject 'test-user-id', got '%s'", payload.Sub)
+			}
+
+			if payload.Email != "test@example.com" {
+				t.Errorf("Expected email 'test@example.com', got '%s'", payload.Email)
+			}
+
+			if payload.Role != "authenticated" {
+				t.Errorf("Expected role 'authenticated', got '%s'", payload.Role)
+			}
+		})
 	}
 }

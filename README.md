@@ -172,8 +172,11 @@ err = client.SignOut(ctx)
 ### Token Handling
 
 ```go
-// Verify a token
-user, err := client.VerifyToken(ctx, token)
+// Verify a token using Supabase API
+user, err := client.VerifyTokenWithAPI(ctx, token)
+
+// Verify a JWT token locally without making API calls
+valid, err := auth.VerifyJWT(token, "your-jwt-secret")
 
 // Check if a token is expired
 expired, err := auth.IsTokenExpired(token)
@@ -313,7 +316,7 @@ func AuthMiddleware(client *auth.Client) func(http.Handler) http.Handler {
 			token := parts[1]
 
 			// Verify token with Supabase
-			user, err := client.VerifyToken(r.Context(), token)
+			user, err := client.VerifyTokenWithAPI(r.Context(), token)
 			if err != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
@@ -380,7 +383,7 @@ client.SetTokenCallback(func(accessToken, refreshToken string) {
 
 See the [examples](./examples) directory for complete working examples:
 
-- [Basic Usage](./examples/unified/main.go)
+- [Basic Usage](./examples/basic/main.go)
 - [HTTP Middleware](./examples/middleware/main.go)
 
 ## License
