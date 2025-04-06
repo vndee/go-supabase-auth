@@ -109,7 +109,7 @@ func TestIntegration_Admin(t *testing.T) {
 	}
 
 	// Create admin
-	admin := NewAdmin(projectURL, apiKey)
+	admin := NewClient(projectURL, apiKey)
 	ctx := context.Background()
 
 	// Test getting auth settings

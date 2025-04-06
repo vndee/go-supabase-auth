@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/vndee/go-supabase-auth/auth"
 )
@@ -89,40 +88,33 @@ func RoleMiddleware(requiredRole string) func(http.Handler) http.Handler {
 func handleError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 		"error": message,
-	}); err != nil {
-		log.Printf("Error encoding response: %v", err)
-	}
+	})
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(UserKey).(*auth.User)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
 		"message": fmt.Sprintf("Hello, %s!", user.Email),
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    user.Role,
-	}); err != nil {
-		log.Printf("Error encoding response: %v", err)
-	}
+	})
 }
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(UserKey).(*auth.User)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"message":   "Admin area",
-		"user_id":   user.ID,
-		"email":     user.Email,
-		"role":      user.Role,
-		"timestamp": time.Now().Format(time.RFC3339),
-	}); err != nil {
-		log.Printf("Error encoding response: %v", err)
-	}
+	json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
+		"message": "Admin area - you have access!",
+		"user_id": user.ID,
+		"email":   user.Email,
+		"role":    user.Role,
+	})
 }
 
 func main() {
@@ -141,7 +133,7 @@ func main() {
 	authMiddleware := AuthMiddleware(client)
 	adminMiddleware := RoleMiddleware("admin")
 
-	// Create handlers
+	// Create routes
 	http.Handle("/hello", authMiddleware(http.HandlerFunc(helloHandler)))
 	http.Handle("/admin", authMiddleware(adminMiddleware(http.HandlerFunc(adminHandler))))
 
@@ -151,6 +143,45 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 			"message": "Public endpoint, no authentication required",
+		})
+	})
+
+	// User management endpoint (example of creating a user)
+	http.HandleFunc("/create-user", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			handleError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var userInput struct {
+			Email    string                 `json:"email"`
+			Password string                 `json:"password"`
+			Metadata map[string]interface{} `json:"metadata"`
+		}
+
+		err := json.NewDecoder(r.Body).Decode(&userInput)
+		if err != nil {
+			handleError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		user, err := client.CreateUser(r.Context(), &auth.CreateUserOptions{
+			Email:        userInput.Email,
+			Password:     userInput.Password,
+			UserMetadata: userInput.Metadata,
+		})
+
+		if err != nil {
+			handleError(w, fmt.Sprintf("Error creating user: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:errcheck
+			"message": "User created successfully",
+			"user_id": user.ID,
+			"email":   user.Email,
 		})
 	})
 

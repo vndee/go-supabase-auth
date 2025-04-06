@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/vndee/go-supabase-auth/auth"
 )
@@ -19,135 +18,101 @@ func main() {
 		log.Fatal("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables must be set")
 	}
 
-	// Create a new admin client
-	admin := auth.NewAdmin(projectURL, apiKey)
+	// Create a Supabase client
+	client := auth.NewClient(projectURL, apiKey)
 	ctx := context.Background()
 
-	// List users
+	// Example 1: List users (admin operation)
 	fmt.Println("Listing users...")
-	users, err := admin.ListUsers(ctx, &auth.ListUsersOptions{
+	users, err := client.ListUsers(ctx, &auth.ListUsersOptions{
 		PerPage: 10,
 	})
 	if err != nil {
 		log.Fatalf("Error listing users: %v", err)
 	}
 
-	fmt.Printf("Found %d users (out of %d total)\n", len(users.Users), users.TotalCount)
+	fmt.Printf("Found %d users\n", len(users.Users))
 	for i, user := range users.Users {
-		fmt.Printf("%d. %s - %s (created: %s)\n",
-			i+1, user.Email, user.ID, user.CreatedAt.Format(time.RFC3339))
+		fmt.Printf("%d. %s (%s)\n", i+1, user.Email, user.ID)
 	}
 
-	// Create a user
+	// Example 2: Create a user (admin operation)
 	fmt.Println("\nCreating a new user...")
-	newUser, err := admin.CreateUser(ctx, &auth.CreateUserOptions{
-		Email:        "test@example.com",
-		Password:     "password123",
-		EmailConfirm: true, // Auto-confirm email
+	newUser, err := client.CreateUser(ctx, &auth.CreateUserOptions{
+		Email:    "test@example.com",
+		Password: "password123",
 		UserMetadata: map[string]interface{}{
 			"name": "Test User",
-			"org":  "Test Organization",
-		},
-		AppMetadata: map[string]interface{}{
-			"plan": "free",
 		},
 	})
 
+	// Handle case where user might already exist
 	if err != nil {
 		if auth.IsConflictError(err) {
-			fmt.Println("User already exists. Fetching instead...")
-			// Try to fetch the user by email (using a filter)
-			usersWithEmail, err := admin.ListUsers(ctx, &auth.ListUsersOptions{
+			fmt.Println("User already exists, trying to find them...")
+			// Try to find the user by email
+			userList, err := client.ListUsers(ctx, &auth.ListUsersOptions{
 				Filter: auth.BuildFilter("email", "eq", "test@example.com"),
 			})
 			if err != nil {
-				log.Fatalf("Error fetching user: %v", err)
+				log.Fatalf("Error finding user: %v", err)
 			}
 
-			if len(usersWithEmail.Users) > 0 {
-				newUser = &usersWithEmail.Users[0]
+			if len(userList.Users) > 0 {
+				newUser = &userList.Users[0]
+				fmt.Printf("Found existing user with ID: %s\n", newUser.ID)
 			} else {
-				log.Fatalf("User exists but couldn't fetch: %v", err)
+				log.Fatalf("User should exist but couldn't be found")
 			}
 		} else {
 			log.Fatalf("Error creating user: %v", err)
 		}
 	} else {
-		fmt.Printf("Created user: %s with ID: %s\n", newUser.Email, newUser.ID)
+		fmt.Printf("Created new user with ID: %s\n", newUser.ID)
 	}
 
-	// Update the user
-	fmt.Println("\nUpdating user...")
-	updatedUser, err := admin.UpdateUser(ctx, newUser.ID, &auth.UpdateUserOptions{
-		UserMetadata: map[string]interface{}{
-			"name": "Updated Test User",
-			"org":  "Updated Test Organization",
-		},
-	})
-	if err != nil {
-		log.Fatalf("Error updating user: %v", err)
-	}
-	fmt.Printf("Updated user metadata: %v\n", updatedUser.UserMetadata)
-
-	// Generate a password reset link
+	// Example 3: Generate a password reset link (auth operation)
 	fmt.Println("\nGenerating password reset link...")
 	linkOptions := &auth.GenerateLinkOptions{
-		Email:      newUser.Email,
-		RedirectTo: "https://your-app.com/reset-password",
+		Email:      "test@example.com",
+		RedirectTo: "https://yourapp.com/reset-password",
 	}
 
-	link, err := admin.Client().GenerateLink(ctx, auth.LinkActionRecovery, linkOptions)
+	link, err := client.GenerateLink(ctx, auth.LinkActionRecovery, linkOptions)
 	if err != nil {
 		log.Fatalf("Error generating link: %v", err)
 	}
-	fmt.Printf("Password reset link: %s\n", link.Link)
-	fmt.Printf("Link expires at: %s\n", link.ExpiresAt.Format(time.RFC3339))
+	fmt.Printf("Password reset link generated: %s\n", link.Link)
 
-	// Set user role
-	fmt.Println("\nSetting user role...")
-	roleUser, err := admin.Client().SetUserRole(ctx, newUser.ID, "editor")
+	// Example 4: Update auth settings (admin operation)
+	fmt.Println("\nGetting auth settings...")
+	settings, err := client.GetAuthSettings(ctx)
 	if err != nil {
-		log.Fatalf("Error setting user role: %v", err)
+		log.Fatalf("Error getting auth settings: %v", err)
 	}
-	fmt.Printf("User role set to: %s\n", roleUser.Role)
+	fmt.Printf("Current auth settings: %v\n", settings)
 
-	// Ban the user
+	// Example 5: Ban a user (admin operation + convenience method)
 	fmt.Println("\nBanning user...")
-	bannedUser, err := admin.Client().BanUser(ctx, newUser.ID)
+	bannedUser, err := client.BanUser(ctx, newUser.ID)
 	if err != nil {
 		log.Fatalf("Error banning user: %v", err)
 	}
-	fmt.Printf("User banned: %t\n", bannedUser.Banned)
+	fmt.Printf("User banned: %v\n", bannedUser.Banned)
 
-	// Unban the user
+	// Example 6: Unban the user
 	fmt.Println("\nUnbanning user...")
-	unbannedUser, err := admin.Client().UnbanUser(ctx, newUser.ID)
+	unbannedUser, err := client.UnbanUser(ctx, newUser.ID)
 	if err != nil {
 		log.Fatalf("Error unbanning user: %v", err)
 	}
-	fmt.Printf("User banned: %t\n", unbannedUser.Banned)
+	fmt.Printf("User unbanned: %v\n", !unbannedUser.Banned)
 
-	// List user's sessions
-	fmt.Println("\nListing user sessions...")
-	sessions, err := admin.Client().ListUserSessions(ctx, newUser.ID)
-	if err != nil {
-		log.Fatalf("Error listing sessions: %v", err)
-	}
-	fmt.Printf("User has %d active sessions\n", len(sessions))
-
-	// Delete the user sessions
-	fmt.Println("\nDeleting user sessions...")
-	err = admin.Client().DeleteUserSessions(ctx, newUser.ID)
-	if err != nil {
-		log.Fatalf("Error deleting sessions: %v", err)
-	}
-	fmt.Println("All user sessions deleted")
-
-	// Delete the user
+	// Example 7: Delete the user
 	fmt.Println("\nDeleting user...")
-	err = admin.DeleteUser(ctx, newUser.ID)
+	err = client.DeleteUser(ctx, newUser.ID)
 	if err != nil {
 		log.Fatalf("Error deleting user: %v", err)
 	}
-	fmt.Println("User deleted successfully")
+	fmt.Println("User deleted successfully!")
 }

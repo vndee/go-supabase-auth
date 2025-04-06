@@ -157,3 +157,11 @@ type InviteOptions struct {
 	Data         map[string]interface{} `json:"data,omitempty"`
 	UserMetadata map[string]interface{} `json:"user_metadata,omitempty"`
 }
+
+// TokenResponse represents the response from authentication endpoints
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	User         User   `json:"user"`
+}
